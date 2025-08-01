@@ -1,0 +1,9 @@
+flask
+flask-cors
+websockets
+pynput
+pyautogui
+mss
+opencv-python
+asyncio
+requests
