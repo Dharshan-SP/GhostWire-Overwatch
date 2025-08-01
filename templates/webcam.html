@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Webcam Snapshot{% endblock %}
+{% block content %}
+<h2 class="mb-3">Remote Webcam Snapshot</h2>
+<form method="POST">
+  <button class="btn btn-outline-light mb-3">Capture Webcam</button>
+</form>
+{% if snapshot %}
+<img src="data:image/jpeg;base64,{{ snapshot }}" class="img-fluid border border-secondary rounded" />
+{% endif %}
+{% endblock %}

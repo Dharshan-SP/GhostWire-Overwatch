@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connected Clients</title>
+  <style>
+    body { background: #121212; color: #0f0; font-family: sans-serif; padding: 20px; }
+    ul { list-style: none; padding: 0; }
+    li { background: #1e1e1e; margin: 10px 0; padding: 10px; border-left: 5px solid #0f0; }
+  </style>
+</head>
+<body>
+  <h2>🧑‍💻 Active Clients</h2>
+  <ul>
+    {% for client in clients %}
+      <li>{{ client }}</li>
+    {% else %}
+      <li>No clients connected.</li>
+    {% endfor %}
+  </ul>
+</body>
+</html>

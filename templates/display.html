@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Screen Display</title>
+    <style>
+        #screenCanvas {
+            width: 100%;
+            height: auto;
+            max-width: 1280px;
+            display: block;
+            margin: auto;
+            background: black;
+            image-rendering: pixelated;
+        }
+        body {
+            margin: 0;
+            background: #222;
+            color: white;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Live Screen Stream</h1>
+    <canvas id="screenCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById('screenCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        let lastFrame = null;
+
+        function resizeCanvas(img) {
+            const aspectRatio = img.width / img.height;
+            const targetWidth = Math.min(1280, window.innerWidth * 0.95);
+            canvas.width = targetWidth;
+            canvas.height = targetWidth / aspectRatio;
+        }
+
+        function drawFrame(img) {
+            resizeCanvas(img);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            lastFrame = img;
+            console.debug(`Rendered frame at ${performance.now().toFixed(2)}ms`);
+        }
+
+        function connectWebSocket() {
+            const ws = new WebSocket(`ws://${window.location.hostname}:8766`);
+            ws.onopen = () => {
+                console.log("WebSocket connected to browser");
+            };
+            ws.onmessage = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    drawFrame(img);
+                };
+                img.onerror = () => {
+                    console.error("Failed to load frame");
+                };
+                img.src = `data:image/jpeg;base64,${event.data}`;
+            };
+            ws.onclose = () => {
+                console.log("WebSocket closed, reconnecting...");
+                setTimeout(connectWebSocket, 2000);
+            };
+            ws.onerror = (err) => {
+                console.error("WebSocket error:", err);
+            };
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>

