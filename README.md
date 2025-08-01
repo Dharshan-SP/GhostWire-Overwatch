@@ -31,6 +31,7 @@
 
 ## 📂 Project Structure
 
+
 GhostWire-Overwatch/
 ├── app.py # Flask server (web interface)
 ├── client.py # Client-side agent script
