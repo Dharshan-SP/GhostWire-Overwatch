@@ -1,35 +1,67 @@
-# 👻 GhostWire-Overwatch
+# 👻 GhostWire: Overwatch
 
-GhostWire-Overwatch is a secure client-server application designed for end-to-end file transmission with automated encryption, logging, and monitoring. Built using Python, it leverages strong cryptography and real-time activity tracing to ensure safe communication.
-
----
-
-## 🚀 Features
-
-- 🔐 **AES Encryption** – Secure file transfer with symmetric AES.
-- 🔗 **Client-Server Architecture** – Built with socket programming in Python.
-- 📝 **Logging System** – Detailed logs of transmissions and file access.
-- 📊 **Real-time Monitoring** – Tracks operations live.
-- 🧪 **Tested for Reliability** – Works over LAN and localhost.
+**GhostWire: Overwatch** is a remote administration and monitoring tool built for cybersecurity research and ethical hacking purposes. Designed with a web-based interface, it enables control and observation of client systems in real-time.
 
 ---
 
-## 🛠 Tech Stack
+## 🧠 Features
 
-- **Language**: Python 3
-- **Encryption**: `cryptography` library (AES)
-- **Sockets**: Python `socket` module
-- **Logging**: Built-in `logging`
-- **UI**: CLI-based interface (optional GUI support in future)
+- 📺 **Live Screen Streaming** – View client screens continuously via web.
+- 🎮 **Remote Command Execution** – Run terminal commands on client machines.
+- 🧠 **Keylogger** – Logs keystrokes and saves them for review.
+- 🎥 **Webcam Access** – View the client’s webcam feed through browser.
+- 🔐 **AES-based Encryption** – Secure communication via Fernet (AES-CBC + HMAC).
+- 🕵️ **Persistence Mode** – Clients automatically reconnect after disconnection.
+- 🌐 **Web-Based Interface** – Flask + WebSocket server for real-time control.
+
+---
+
+## 💻 Tech Stack
+
+| Component       | Stack                          |
+|----------------|----------------------------------|
+| Backend         | Python, Flask, WebSockets        |
+| Encryption      | Cryptography (Fernet/AES-CBC)    |
+| Frontend        | HTML + JavaScript (Jinja2)       |
+| Real-time Comm  | WebSockets                       |
+| Media Handling  | OpenCV (webcam), PIL (screen)    |
+| Logging         | Text-based keystroke logger      |
 
 ---
 
 ## 📂 Project Structure
 
-```bash
-GhostWire-Overwatch/
-├── client.py        # Handles file selection & encrypted transmission
-├── server.py        # Receives, decrypts, logs the file
-├── app.py           # Driver/controller script
+.
+├── app.py # Flask server
+├── client.py # Client listener
+├── server.py # WebSocket server
+├── keylog.txt # Stored keystrokes
+├── LICENSE
 ├── README.md
-└── .gitignore
+└── templates/
+├── base.html
+├── clients.html
+├── command.html
+├── display.html
+├── help.html
+├── index.html
+├── keylogger.html
+└── webcam.html
+
+---
+
+## ⚠️ Legal Disclaimer
+
+This project is **strictly for educational and research purposes**. Unauthorized use of this tool on devices you do not own or have explicit permission to control is **illegal and unethical**. Use responsibly.
+
+---
+
+## 🚀 Developer Mode
+
+This version is currently in **Developer Mode**. Contributions, feedback, and issues are welcome as features continue to evolve.
+
+---
+
+## 📜 License
+
+[MIT License](./LICENSE)
