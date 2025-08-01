@@ -47,6 +47,23 @@ GhostWire-Overwatch/
 ├── index.html
 ├── keylogger.html
 └── webcam.html
+``` GhostWire-Overwatch/
+├── app.py            # Flask server (web interface)
+├── client.py         # Client-side agent script
+├── server.py         # WebSocket command server
+├── keylog.txt        # Stores keystroke logs
+├── LICENSE           # MIT License file
+├── README.md         # Project documentation
+└── templates/        # HTML templates (Jinja2)
+    ├── base.html
+    ├── clients.html
+    ├── command.html
+    ├── display.html
+    ├── help.html
+    ├── index.html
+    ├── keylogger.html
+    └── webcam.html
+```
 ---
 
 ## ⚠️ Legal Disclaimer
