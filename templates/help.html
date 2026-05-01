@@ -11,6 +11,19 @@
             font-family: Arial, sans-serif;
             padding: 20px;
         }
+        .back-home {
+            display: inline-block;
+            margin-bottom: 16px;
+            padding: 8px 12px;
+            border: 1px solid #00ffcc;
+            border-radius: 6px;
+            color: #00ffcc;
+            text-decoration: none;
+        }
+        .back-home:focus,
+        .back-home:hover {
+            text-decoration: underline;
+        }
         h1 {
             color: #00ffcc;
         }
@@ -34,6 +47,7 @@
     </style>
 </head>
 <body>
+    <a class="back-home" href="{{ url_for('index') }}">Back to Home</a>
     <h1>Available Commands</h1>
     <table>
         <thead>

@@ -37,10 +37,15 @@
         <li class="nav-item"><a class="nav-link" href="{{ url_for('keylogger') }}">Keylogger</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('command') }}">Command</a></li>
         <li class="nav-item"><a class="nav-link" href="{{ url_for('webcam') }}">Webcam</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('webcam_capture') }}">Webcam Capture</a></li>
+          <li class="nav-item"><a class="nav-link" href="{{ url_for('screenshot_capture') }}">Screenshot Capture</a></li>
       </ul>
     </div>
   </nav>
   <div class="container mt-4">
+    {% if request.endpoint != 'index' %}
+      <a class="btn btn-outline-light mb-3" href="{{ url_for('index') }}">Back to Home</a>
+    {% endif %}
     {% block content %}{% endblock %}
   </div>
 </body>

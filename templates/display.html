@@ -3,6 +3,19 @@
 <head>
     <title>Screen Display</title>
     <style>
+        .back-home {
+            display: inline-block;
+            margin: 12px auto 0;
+            padding: 8px 12px;
+            border: 1px solid #fff;
+            border-radius: 6px;
+            color: #fff;
+            text-decoration: none;
+        }
+        .back-home:focus,
+        .back-home:hover {
+            text-decoration: underline;
+        }
         #screenCanvas {
             width: 100%;
             height: auto;
@@ -21,6 +34,7 @@
     </style>
 </head>
 <body>
+    <a class="back-home" href="{{ url_for('index') }}">Back to Home</a>
     <h1>Live Screen Stream</h1>
     <canvas id="screenCanvas"></canvas>
     <script>

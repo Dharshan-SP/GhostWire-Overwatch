@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Screenshot Capture</h2>
+    <form method="POST" action="{{ url_for('screenshot_capture') }}">
+        <button type="submit" class="btn btn-success">Capture Screenshot</button>
+    </form>
+    {% if image_url %}
+    <div class="mt-4">
+        <h5>Last Captured Screenshot:</h5>
+        <img src="{{ image_url }}" alt="Screenshot Image" class="img-fluid" style="max-width:400px;">
+        <p class="mt-2">Captured at: {{ timestamp }}</p>
+        <p>Device: {{ device }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
